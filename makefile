@@ -1,19 +1,14 @@
-CXX      := g++
-CXXFLAGS := -std=c++17 
-LDFLAGS  := -lglfw -lvulkan -ldl -pthread
-TARGET   := VulkanTest
-SRC      := main.cpp
+CFLAGS = -std=c++17 -I. -I$(VULKAN_SDK_PATH)/include
+LDFLAGS = -L$(VULKAN_SDK_PATH)/lib `pkg-config --static --libs glfw3` -lvulkan -g
 
-all: $(TARGET)
+a.out: *.cpp *.h
+	g++ $(CFLAGS) -o a.out *.cpp $(LDFLAGS)
 
-$(TARGET): $(SRC)
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
+.PHONY: test clean
+
+test: a.out
+	./a.out
 
 clean:
-	rm -f $(TARGET)
-
-run: $(TARGET)
-	./$(TARGET)
-
-.PHONY: all clean
+	rm -f a.out
 
