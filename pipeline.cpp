@@ -46,9 +46,6 @@ void Pipeline::createGraphicsPipeline(const string &vertFilePath,
                                       const PipelineConfigInfo &configInfo) {
   auto vertCode = readFile(vertFilePath);
   auto fragCode = readFile(fragFilePath);
-
-  cout << "VERT SIZE: " << vertCode.size() << " FRAG SIZE: " << fragCode.size()
-       << endl;
 }
 
 void Pipeline::createShaderModule(const vector<char> &code,

@@ -29,10 +29,8 @@ void Window::createWindowSurface(VkInstance instance, VkSurfaceKHR *surface) {
 }
 
 void Window::initWindow() {
-  // NOTE: Window not appearing becuse of odd wayland things
-  glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_X11);
   glfwInit();
-  glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+  glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
   glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
   window =
