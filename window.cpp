@@ -23,22 +23,17 @@ void Window::createWindowSurface(VkInstance instance, VkSurfaceKHR *surface) {
 
   if (glfwCreateWindowSurface(instance, window, nullptr, surface) !=
       VK_SUCCESS) {
-
-    throw std::runtime_error("Failed to create window surface");
+    throw std::runtime_error("failed to craete window surface");
   }
 }
 
 void Window::initWindow() {
+
   glfwInit();
-  glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
+  glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
   glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
   window =
       glfwCreateWindow(width, height, windowName.c_str(), nullptr, nullptr);
-
-  if (window == nullptr) {
-    throw std::runtime_error("Failed to create GLFW window");
-  }
-
-  glfwMakeContextCurrent(window);
+  glfwSetWindowUserPointer(window, this);
 }
