@@ -1,7 +1,7 @@
 CFLAGS = -std=c++17 -I. -I$(VULKAN_SDK_PATH)/include
 LDFLAGS = -lglfw -lGL -lvulkan -ldl -lpthread -lm -g
 
-a.out: *.cpp *.h *.hpp
+a.out: *.cpp *.hpp
 	g++ $(CFLAGS) -o a.out *.cpp $(LDFLAGS)
 
 .PHONY: test clean

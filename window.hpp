@@ -5,28 +5,24 @@
 
 #include <string>
 
-using std::string;
-
 class Window {
 public:
-  Window(int w, int h, string name);
+  Window(int w, int h, std::string name);
   ~Window();
 
   Window(const Window &) = delete;
   Window &operator=(const Window &) = delete;
 
-  bool shouldClose();
-
-  GLFWwindow *getGLFWwindow() const;
+  bool shouldClose() { return glfwWindowShouldClose(window); }
 
   void createWindowSurface(VkInstance instance, VkSurfaceKHR *surface);
 
 private:
   void initWindow();
 
-  int width;
-  int height;
+  const int width;
+  const int height;
 
+  std::string windowName;
   GLFWwindow *window;
-  string windowName;
 };

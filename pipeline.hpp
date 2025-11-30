@@ -1,12 +1,10 @@
 #pragma once
 
 #include "device.hpp"
+
+// std
 #include <string>
 #include <vector>
-#include <vulkan/vulkan_core.h>
-
-using std::string;
-using std::vector;
 
 struct PipelineConfigInfo {
   VkViewport viewport;
@@ -22,13 +20,13 @@ struct PipelineConfigInfo {
   VkRenderPass renderPass = nullptr;
   uint32_t subpass = 0;
 };
-;
 
 class Pipeline {
 public:
-  Pipeline(Device &device, const string &vertFilePath,
-           const string &fragFilePath, const PipelineConfigInfo &configInfo);
-  ~Pipeline() {}
+  Pipeline(Device &device, const std::string &vertFilepath,
+           const std::string &fragFilepath,
+           const PipelineConfigInfo &configInfo);
+  ~Pipeline();
 
   Pipeline(const Pipeline &) = delete;
   void operator=(const Pipeline &) = delete;
@@ -37,13 +35,13 @@ public:
                                                       uint32_t height);
 
 private:
-  static vector<char> readFile(const string &filepath);
+  static std::vector<char> readFile(const std::string &filepath);
 
-  void createGraphicsPipeline(const string &vertFilePath,
-                              const string &fragFilePath,
+  void createGraphicsPipeline(const std::string &vertFilepath,
+                              const std::string &fragFilepath,
                               const PipelineConfigInfo &configInfo);
 
-  void createShaderModule(const vector<char> &code,
+  void createShaderModule(const std::vector<char> &code,
                           VkShaderModule *shaderModule);
 
   Device &device;
