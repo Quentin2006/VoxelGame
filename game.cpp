@@ -1,9 +1,11 @@
 #include "game.hpp"
+#include "model.hpp"
 
 #include <array>
 #include <stdexcept>
 
 Game::Game() {
+  loadModels();
   createPipelineLayout();
   createPipeline();
   createCommandBuffers();
@@ -80,7 +82,10 @@ void Game::createCommandBuffers() {
                          VK_SUBPASS_CONTENTS_INLINE);
 
     pipeline->bind(commandBuffers[i]);
-    vkCmdDraw(commandBuffers[i], 3, 1, 0, 0);
+
+    model->bind(commandBuffers[i]);
+    model->draw(commandBuffers[i]);
+
     vkCmdEndRenderPass(commandBuffers[i]);
     if (vkEndCommandBuffer(commandBuffers[i]) != VK_SUCCESS) {
       throw std::runtime_error("failed to record command buffer!");
@@ -99,4 +104,34 @@ void Game::drawFrame() {
   if (result != VK_SUCCESS) {
     throw std::runtime_error("failed to present swap chain image!");
   }
+}
+
+void Game::loadModels() {
+  std::vector<Model::Vertex> vertices;
+  sierpinski({{0.0f, -0.5f}}, {{0.5f, 0.5f}}, {{-0.5f, 0.5f}}, 5, vertices);
+
+  model = std::make_unique<Model>(device, vertices);
+}
+
+void Game::sierpinski(Model::Vertex a, Model::Vertex b, Model::Vertex c,
+                      int depth, std::vector<Model::Vertex> &points) {
+  if (depth == 0) {
+    points.push_back(a);
+    points.push_back(b);
+    points.push_back(c);
+    return;
+  }
+
+  // Compute midpoints of each side
+  Model::Vertex ab = {{(a.position.x + b.position.x) * 0.5f,
+                       (a.position.y + b.position.y) * 0.5f}};
+  Model::Vertex bc = {{(b.position.x + c.position.x) * 0.5f,
+                       (b.position.y + c.position.y) * 0.5f}};
+  Model::Vertex ca = {{(c.position.x + a.position.x) * 0.5f,
+                       (c.position.y + a.position.y) * 0.5f}};
+
+  // Recurse on the 3 smaller triangles
+  sierpinski(a, ab, ca, depth - 1, points);
+  sierpinski(ab, b, bc, depth - 1, points);
+  sierpinski(ca, bc, c, depth - 1, points);
 }

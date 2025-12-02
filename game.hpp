@@ -1,6 +1,7 @@
 #pragma once
 
 #include "device.hpp"
+#include "model.hpp"
 #include "pipeline.hpp"
 #include "swapchain.hpp"
 #include "window.hpp"
@@ -11,7 +12,7 @@
 class Game {
 public:
   static constexpr int WIDTH = 800;
-  static constexpr int HEIGHT = 600;
+  static constexpr int HEIGHT = 800;
 
   Game();
   ~Game();
@@ -26,6 +27,10 @@ private:
   void createPipeline();
   void createCommandBuffers();
   void drawFrame();
+  void loadModels();
+
+  void sierpinski(Model::Vertex a, Model::Vertex b, Model::Vertex c, int depth,
+                  std::vector<Model::Vertex> &points);
 
   Window window{WIDTH, HEIGHT, "Hello Vulkan!"};
   Device device{window};
@@ -34,4 +39,6 @@ private:
 
   VkPipelineLayout pipelineLayout;
   std::vector<VkCommandBuffer> commandBuffers;
+
+  std::unique_ptr<Model> model;
 };

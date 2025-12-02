@@ -1,6 +1,7 @@
 #include "window.hpp"
 
 // std
+#include <GLFW/glfw3.h>
 #include <stdexcept>
 
 Window::Window(int w, int h, std::string name)
@@ -16,7 +17,7 @@ Window::~Window() {
 void Window::initWindow() {
   glfwInit();
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-  glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+  glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
   window =
       glfwCreateWindow(width, height, windowName.c_str(), nullptr, nullptr);
