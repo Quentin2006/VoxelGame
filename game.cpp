@@ -107,8 +107,13 @@ void Game::drawFrame() {
 }
 
 void Game::loadModels() {
-  std::vector<Model::Vertex> vertices;
-  sierpinski({{0.0f, -0.5f}}, {{0.5f, 0.5f}}, {{-0.5f, 0.5f}}, 5, vertices);
+  std::vector<Model::Vertex> vertices{{{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+                                      {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
+                                      {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}};
+
+  // sierpinski({{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+  //            {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
+  //            {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}, 3, vertices);
 
   model = std::make_unique<Model>(device, vertices);
 }

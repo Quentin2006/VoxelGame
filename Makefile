@@ -28,3 +28,5 @@ clean:
 	rm -f a.out
 	find shaders -name "*.spv" -delete
 
+run: clean test
+
