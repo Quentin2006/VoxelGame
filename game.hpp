@@ -28,13 +28,16 @@ private:
   void createCommandBuffers();
   void drawFrame();
   void loadModels();
+  void recreateSwapChain();
+  void recordCommandBuffer(int imageIndex);
+  void freeCommandBuffers();
 
   void sierpinski(Model::Vertex a, Model::Vertex b, Model::Vertex c, int depth,
                   std::vector<Model::Vertex> &points);
 
   Window window{WIDTH, HEIGHT, "Hello Vulkan!"};
   Device device{window};
-  SwapChain swapchain{device, window.getExtent()};
+  std::unique_ptr<SwapChain> swapChain;
   std::unique_ptr<Pipeline> pipeline;
 
   VkPipelineLayout pipelineLayout;

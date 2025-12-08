@@ -46,7 +46,7 @@ void Model::createVertexBuffers(const std::vector<Vertex> &vertices) {
 }
 
 std::vector<VkVertexInputBindingDescription>
-Model::Vertex::getBindingDesctiptions() {
+Model::Vertex::getBindingDescriptions() {
   std::vector<VkVertexInputBindingDescription> bindingDescs(1);
   bindingDescs[0].binding = 0;
   bindingDescs[0].stride = sizeof(Vertex);
