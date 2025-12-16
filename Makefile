@@ -10,13 +10,12 @@ fragSources = $(shell find ./shaders -type f -name "*.frag")
 fragObjFiles = $(patsubst %.frag, %.frag.spv, $(fragSources))
 
 TARGET = a.out
-
 $(TARGET): $(vertObjFiles) $(fragObjFiles)
 $(TARGET): *.cpp *.hpp
 	g++ $(CFLAGS) -o $(TARGET) *.cpp $(LDFLAGS)
 
 # make shader targets
-shaders/%.spv: shaders/%
+%.spv: %
 	$(GLSLC) $< -o $@
 
 .PHONY: test clean
