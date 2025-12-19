@@ -1,13 +1,12 @@
 #pragma once
 
 #include "device.hpp"
-#include "model.hpp"
-#include "pipeline.hpp"
-#include "swapchain.hpp"
+#include "object.hpp"
+#include "renderer.hpp"
 #include "window.hpp"
 
-#include <memory>
 #include <vector>
+#include <vulkan/vulkan_core.h>
 
 class Game {
 public:
@@ -23,25 +22,11 @@ public:
   void run();
 
 private:
-  void createPipelineLayout();
-  void createPipeline();
-  void createCommandBuffers();
-  void drawFrame();
-  void loadModels();
-  void recreateSwapChain();
-  void recordCommandBuffer(int imageIndex);
-  void freeCommandBuffers();
-
-  void sierpinski(Model::Vertex a, Model::Vertex b, Model::Vertex c, int depth,
-                  std::vector<Model::Vertex> &points);
+  void loadObjects();
 
   Window window{WIDTH, HEIGHT, "Hello Vulkan!"};
   Device device{window};
-  std::unique_ptr<SwapChain> swapChain;
-  std::unique_ptr<Pipeline> pipeline;
+  Renderer renderer{window, device};
 
-  VkPipelineLayout pipelineLayout;
-  std::vector<VkCommandBuffer> commandBuffers;
-
-  std::unique_ptr<Model> model;
+  std::vector<Object> objects;
 };

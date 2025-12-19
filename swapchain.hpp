@@ -3,10 +3,10 @@
 #include "device.hpp"
 
 // vulkan headers
-#include <memory>
 #include <vulkan/vulkan.h>
 
 // std lib headers
+#include <memory>
 #include <vector>
 
 class SwapChain {
@@ -14,12 +14,13 @@ public:
   static constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 
   SwapChain(Device &deviceRef, VkExtent2D windowExtent);
-  SwapChain(Device &deviceRef, VkExtent2D extent,
+  SwapChain(Device &deviceRef, VkExtent2D windowExtent,
             std::shared_ptr<SwapChain> previous);
+
   ~SwapChain();
 
   SwapChain(const SwapChain &) = delete;
-  const SwapChain &operator=(const SwapChain &) = delete;
+  SwapChain &operator=(const SwapChain &) = delete;
 
   VkFramebuffer getFrameBuffer(int index) {
     return swapChainFramebuffers[index];
@@ -42,6 +43,11 @@ public:
   VkResult submitCommandBuffers(const VkCommandBuffer *buffers,
                                 uint32_t *imageIndex);
 
+  bool compareSwapFormats(const SwapChain &swapChain) const {
+    return swapChain.swapChainDepthFormat == swapChainDepthFormat &&
+           swapChain.swapChainImageFormat == swapChainImageFormat;
+  }
+
 private:
   void init();
   void createSwapChain();
@@ -59,6 +65,7 @@ private:
   VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR &capabilities);
 
   VkFormat swapChainImageFormat;
+  VkFormat swapChainDepthFormat;
   VkExtent2D swapChainExtent;
 
   std::vector<VkFramebuffer> swapChainFramebuffers;

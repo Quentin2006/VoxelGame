@@ -1,229 +1,207 @@
 #include "game.hpp"
-#include <vulkan/vulkan_core.h>
+#include "simple_render_system.hpp"
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
+#include <glm/gtc/constants.hpp>
 
-#include <array>
 #include <cassert>
-#include <stdexcept>
 
-struct SimplePushConstantData {
-  glm::vec2 offset;
-  alignas(16) glm::vec3 color;
-};
+class GravityPhysicsSystem {
+public:
+  GravityPhysicsSystem(float strength) : strengthGravity{strength} {}
 
-Game::Game() {
-  loadModels();
-  createPipelineLayout();
-  recreateSwapChain();
-  createCommandBuffers();
-}
+  const float strengthGravity;
 
-Game::~Game() {
-  vkDestroyPipelineLayout(device.device(), pipelineLayout, nullptr);
-}
-
-void Game::run() {
-  while (!window.shouldClose()) {
-    glfwPollEvents();
-    drawFrame();
-  }
-
-  vkDeviceWaitIdle(device.device());
-}
-
-void Game::loadModels() {
-  std::vector<Model::Vertex> vertices{{{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-                                      {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
-                                      {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}};
-  model = std::make_unique<Model>(device, vertices);
-}
-
-void Game::createPipelineLayout() {
-  VkPushConstantRange pushConstantRange{};
-  pushConstantRange.stageFlags =
-      VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-  pushConstantRange.offset = 0;
-  pushConstantRange.size = sizeof(SimplePushConstantData);
-
-  VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
-  pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-  pipelineLayoutInfo.setLayoutCount = 0;
-  pipelineLayoutInfo.pSetLayouts = nullptr;
-  pipelineLayoutInfo.pushConstantRangeCount = 1;
-  pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
-  if (vkCreatePipelineLayout(device.device(), &pipelineLayoutInfo, nullptr,
-                             &pipelineLayout) != VK_SUCCESS) {
-    throw std::runtime_error("failed to create pipeline layout!");
-  }
-}
-
-void Game::recreateSwapChain() {
-  auto extent = window.getExtent();
-  while (extent.width == 0 || extent.height == 0) {
-    extent = window.getExtent();
-    glfwWaitEvents();
-  }
-  vkDeviceWaitIdle(device.device());
-
-  if (swapChain == nullptr) {
-    swapChain = std::make_unique<SwapChain>(device, extent);
-  } else {
-    swapChain =
-        std::make_unique<SwapChain>(device, extent, std::move(swapChain));
-    if (swapChain->imageCount() != commandBuffers.size()) {
-      freeCommandBuffers();
-      createCommandBuffers();
+  // dt stands for delta time, and specifies the amount of time to advance the
+  // simulation substeps is how many intervals to divide the forward time step
+  // in. More substeps result in a more stable simulation, but takes longer to
+  // compute
+  void update(std::vector<Object> &objs, float dt, unsigned int substeps = 1) {
+    const float stepDelta = dt / substeps;
+    for (int i = 0; i < substeps; i++) {
+      stepSimulation(objs, stepDelta);
     }
   }
 
-  createPipeline();
+  glm::vec2 computeForce(Object &fromObj, Object &toObj) const {
+    auto offset =
+        fromObj.transform2d.translation - toObj.transform2d.translation;
+    float distanceSquared = glm::dot(offset, offset);
+
+    // clown town - just going to return 0 if objects are too close together...
+    if (glm::abs(distanceSquared) < 1e-10f) {
+      return {.0f, .0f};
+    }
+
+    float force = strengthGravity * toObj.rigidBody2d.mass *
+                  fromObj.rigidBody2d.mass / distanceSquared;
+    return force * offset / glm::sqrt(distanceSquared);
+  }
+
+private:
+  void stepSimulation(std::vector<Object> &physicsObjs, float dt) {
+    // Loops through all pairs of objects and applies attractive force between
+    // them
+    for (auto iterA = physicsObjs.begin(); iterA != physicsObjs.end();
+         ++iterA) {
+      auto &objA = *iterA;
+      for (auto iterB = iterA; iterB != physicsObjs.end(); ++iterB) {
+        if (iterA == iterB)
+          continue;
+        auto &objB = *iterB;
+
+        auto force = computeForce(objA, objB);
+        objA.rigidBody2d.velocity += dt * -force / objA.rigidBody2d.mass;
+        objB.rigidBody2d.velocity += dt * force / objB.rigidBody2d.mass;
+      }
+    }
+
+    // update each objects position based on its final velocity
+    for (auto &obj : physicsObjs) {
+      obj.transform2d.translation += dt * obj.rigidBody2d.velocity;
+    }
+  }
+};
+
+class Vec2FieldSystem {
+public:
+  void update(const GravityPhysicsSystem &physicsSystem,
+              std::vector<Object> &physicsObjs,
+              std::vector<Object> &vectorField) {
+    // For each field line we caluclate the net graviation force for that point
+    // in space
+    for (auto &vf : vectorField) {
+      glm::vec2 direction{};
+      for (auto &obj : physicsObjs) {
+        direction += physicsSystem.computeForce(obj, vf);
+      }
+
+      // This scales the length of the field line based on the log of the length
+      // values were chosen just through trial and error based on what i liked
+      // the look of and then the field line is rotated to point in the
+      // direction of the field
+      vf.transform2d.scale.x =
+          0.005f +
+          0.045f *
+              glm::clamp(glm::log(glm::length(direction) + 1) / 3.f, 0.f, 1.f);
+      vf.transform2d.rotation = atan2(direction.y, direction.x);
+    }
+  }
+};
+
+std::unique_ptr<Model> createSquareModel(Device &device, glm::vec2 offset) {
+  std::vector<Model::Vertex> vertices = {
+      {{-0.5f, -0.5f}}, {{0.5f, 0.5f}},  {{-0.5f, 0.5f}},
+      {{-0.5f, -0.5f}}, {{0.5f, -0.5f}}, {{0.5f, 0.5f}}, //
+  };
+  for (auto &v : vertices) {
+    v.position += offset;
+  }
+  return std::make_unique<Model>(device, vertices);
 }
 
-void Game::createPipeline() {
-  assert(swapChain != nullptr && "Cannot create pipeline before swap chain");
-  assert(pipelineLayout != nullptr &&
-         "Cannot create pipeline before pipeline layout");
+std::unique_ptr<Model> createCircleModel(Device &device,
+                                         unsigned int numSides) {
+  std::vector<Model::Vertex> uniqueVertices{};
+  for (int i = 0; i < numSides; i++) {
+    float angle = i * glm::two_pi<float>() / numSides;
+    uniqueVertices.push_back({{glm::cos(angle), glm::sin(angle)}});
+  }
+  uniqueVertices.push_back({}); // adds center vertex at 0, 0
 
-  PipelineConfigInfo pipelineConfig{};
-  Pipeline::defaultPipelineConfigInfo(pipelineConfig);
-  pipelineConfig.renderPass = swapChain->getRenderPass();
-  pipelineConfig.pipelineLayout = pipelineLayout;
-  pipeline = std::make_unique<Pipeline>(
-      device, "shaders/simple_shader.vert.spv",
-      "shaders/simple_shader.frag.spv", pipelineConfig);
+  std::vector<Model::Vertex> vertices{};
+  for (int i = 0; i < numSides; i++) {
+    vertices.push_back(uniqueVertices[i]);
+    vertices.push_back(uniqueVertices[(i + 1) % numSides]);
+    vertices.push_back(uniqueVertices[numSides]);
+  }
+  return std::make_unique<Model>(device, vertices);
 }
 
-void Game::createCommandBuffers() {
-  commandBuffers.resize(swapChain->imageCount());
+Game::Game() { loadObjects(); }
 
-  VkCommandBufferAllocateInfo allocInfo{};
-  allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-  allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-  allocInfo.commandPool = device.getCommandPool();
-  allocInfo.commandBufferCount = static_cast<uint32_t>(commandBuffers.size());
+Game::~Game() {}
 
-  if (vkAllocateCommandBuffers(device.device(), &allocInfo,
-                               commandBuffers.data()) != VK_SUCCESS) {
-    throw std::runtime_error("failed to allocate command buffers!");
+void Game::run() {
+  // create some models
+  std::shared_ptr<Model> squareModel = createSquareModel(
+      device, {.5f, .0f}); // offset model by .5 so rotation occurs at edge
+                           // rather than center of square
+  std::shared_ptr<Model> circleModel = createCircleModel(device, 64);
+
+  // create physics objects
+  std::vector<Object> physicsObjects{};
+  auto red = Object::createGameObject();
+  red.transform2d.scale = glm::vec2{.05f};
+  red.transform2d.translation = {.5f, .5f};
+  red.color = {1.f, 0.f, 0.f};
+  red.rigidBody2d.velocity = {-.5f, .0f};
+  red.model = circleModel;
+  physicsObjects.push_back(std::move(red));
+  auto blue = Object::createGameObject();
+  blue.transform2d.scale = glm::vec2{.05f};
+  blue.transform2d.translation = {-.45f, -.25f};
+  blue.color = {0.f, 0.f, 1.f};
+  blue.rigidBody2d.velocity = {.5f, .0f};
+  blue.model = circleModel;
+  physicsObjects.push_back(std::move(blue));
+
+  // create vector field
+  std::vector<Object> vectorField{};
+  int gridCount = 40;
+  for (int i = 0; i < gridCount; i++) {
+    for (int j = 0; j < gridCount; j++) {
+      auto vf = Object::createGameObject();
+      vf.transform2d.scale = glm::vec2(0.005f);
+      vf.transform2d.translation = {-1.0f + (i + 0.5f) * 2.0f / gridCount,
+                                    -1.0f + (j + 0.5f) * 2.0f / gridCount};
+      vf.color = glm::vec3(1.0f);
+      vf.model = squareModel;
+      vectorField.push_back(std::move(vf));
+    }
   }
+
+  GravityPhysicsSystem gravitySystem{0.81f};
+  Vec2FieldSystem vecFieldSystem{};
+
+  SimpleRenderSystem simpleRenderSystem{device,
+                                        renderer.getSwapChainRenderPass()};
+
+  while (!window.shouldClose()) {
+    glfwPollEvents();
+
+    if (auto commandBuffer = renderer.beginFrame()) {
+      // update systems
+      gravitySystem.update(physicsObjects, 1.f / 60, 5);
+      vecFieldSystem.update(gravitySystem, physicsObjects, vectorField);
+
+      // render system
+      renderer.beginSwapChainRenderPass(commandBuffer);
+      simpleRenderSystem.renderGameObjects(commandBuffer, physicsObjects);
+      simpleRenderSystem.renderGameObjects(commandBuffer, vectorField);
+      renderer.endSwapChainRenderPass(commandBuffer);
+      renderer.endFrame();
+    }
+  }
+
+  vkDeviceWaitIdle(device.device());
 }
 
-void Game::freeCommandBuffers() {
-  vkFreeCommandBuffers(device.device(), device.getCommandPool(),
-                       static_cast<uint32_t>(commandBuffers.size()),
-                       commandBuffers.data());
-  commandBuffers.clear();
-}
+void Game::loadObjects() {
+  std::vector<Model::Vertex> vertices{{{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+                                      {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
+                                      {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}};
 
-void Game::recordCommandBuffer(int imageIndex) {
-  static int frame = 0;
-  frame = (frame + 1) % 100000;
-  VkCommandBufferBeginInfo beginInfo{};
-  beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+  auto model = std::make_shared<Model>(device, vertices);
 
-  if (vkBeginCommandBuffer(commandBuffers[imageIndex], &beginInfo) !=
-      VK_SUCCESS) {
-    throw std::runtime_error("failed to begin recording command buffer!");
-  }
+  auto triangle = Object::createGameObject();
+  triangle.model = model;
+  triangle.color = {.1f, .8f, .1f};
+  triangle.transform2d.translation.x = .2f;
+  triangle.transform2d.scale = {2.f, .5f};
+  triangle.transform2d.rotation = .25f * glm::two_pi<float>();
 
-  VkRenderPassBeginInfo renderPassInfo{};
-  renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-  renderPassInfo.renderPass = swapChain->getRenderPass();
-  renderPassInfo.framebuffer = swapChain->getFrameBuffer(imageIndex);
-
-  renderPassInfo.renderArea.offset = {0, 0};
-  renderPassInfo.renderArea.extent = swapChain->getSwapChainExtent();
-
-  std::array<VkClearValue, 2> clearValues{};
-  clearValues[0].color = {0.0f, 0.0f, 0.0f, 0.0f};
-  clearValues[1].depthStencil = {1.0f, 0};
-  renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
-  renderPassInfo.pClearValues = clearValues.data();
-
-  vkCmdBeginRenderPass(commandBuffers[imageIndex], &renderPassInfo,
-                       VK_SUBPASS_CONTENTS_INLINE);
-
-  VkViewport viewport{};
-  viewport.x = 0.0f;
-  viewport.y = 0.0f;
-  viewport.width = static_cast<float>(swapChain->getSwapChainExtent().width);
-  viewport.height = static_cast<float>(swapChain->getSwapChainExtent().height);
-  viewport.minDepth = 0.0f;
-  viewport.maxDepth = 1.0f;
-  VkRect2D scissor{{0, 0}, swapChain->getSwapChainExtent()};
-  vkCmdSetViewport(commandBuffers[imageIndex], 0, 1, &viewport);
-  vkCmdSetScissor(commandBuffers[imageIndex], 0, 1, &scissor);
-
-  pipeline->bind(commandBuffers[imageIndex]);
-  model->bind(commandBuffers[imageIndex]);
-
-  for (int i = 0; i < 4; ++i) {
-    SimplePushConstantData push{};
-    push.offset = {-0.5f + frame * 0.00002f, -0.4f + i * 0.25f};
-    push.color = {0.0f, 0.0f, 0.2f + 0.2f * i};
-
-    vkCmdPushConstants(commandBuffers[imageIndex], pipelineLayout,
-                       VK_SHADER_STAGE_VERTEX_BIT |
-                           VK_SHADER_STAGE_FRAGMENT_BIT,
-                       0, sizeof(SimplePushConstantData), &push);
-
-    model->draw(commandBuffers[imageIndex]);
-  }
-
-  vkCmdEndRenderPass(commandBuffers[imageIndex]);
-  if (vkEndCommandBuffer(commandBuffers[imageIndex]) != VK_SUCCESS) {
-    throw std::runtime_error("failed to record command buffer!");
-  }
-}
-
-void Game::drawFrame() {
-  uint32_t imageIndex;
-  auto result = swapChain->acquireNextImage(&imageIndex);
-
-  if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-    recreateSwapChain();
-    return;
-  }
-
-  if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
-    throw std::runtime_error("failed to acquire swap chain image!");
-  }
-
-  recordCommandBuffer(imageIndex);
-  result =
-      swapChain->submitCommandBuffers(&commandBuffers[imageIndex], &imageIndex);
-  if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR ||
-      window.wasWindowResized()) {
-    window.resetWindowResizedFlag();
-    recreateSwapChain();
-    return;
-  } else if (result != VK_SUCCESS) {
-    throw std::runtime_error("failed to present swap chain image!");
-  }
-}
-
-void Game::sierpinski(Model::Vertex a, Model::Vertex b, Model::Vertex c,
-                      int depth, std::vector<Model::Vertex> &points) {
-  if (depth == 0) {
-    points.push_back(a);
-    points.push_back(b);
-    points.push_back(c);
-    return;
-  }
-
-  // Compute midpoints of each side
-  Model::Vertex ab = {{(a.position.x + b.position.x) * 0.5f,
-                       (a.position.y + b.position.y) * 0.5f}};
-  Model::Vertex bc = {{(b.position.x + c.position.x) * 0.5f,
-                       (b.position.y + c.position.y) * 0.5f}};
-  Model::Vertex ca = {{(c.position.x + a.position.x) * 0.5f,
-                       (c.position.y + a.position.y) * 0.5f}};
-
-  // Recurse on the 3 smaller triangles
-  sierpinski(a, ab, ca, depth - 1, points);
-  sierpinski(ab, b, bc, depth - 1, points);
-  sierpinski(ca, bc, c, depth - 1, points);
+  objects.push_back(std::move(triangle));
 }
