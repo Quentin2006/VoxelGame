@@ -66,6 +66,7 @@ void SimpleRenderSystem::renderGameObjects(VkCommandBuffer commandBuffer,
 
   for (auto &obj : gameObjects) {
     SimplePushConstantData push{};
+
     push.color = obj.color;
     push.transform = projectionView * obj.transform.mat4();
 

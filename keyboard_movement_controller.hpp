@@ -10,6 +10,10 @@ struct KeyboardKeyMapping {
   int moveRight = GLFW_KEY_D;
   int moveUp = GLFW_KEY_SPACE;
   int moveDown = GLFW_KEY_LEFT_SHIFT;
+  int increaseLookSpeed = GLFW_KEY_UP;
+  int decreaseLookSpeed = GLFW_KEY_DOWN;
+  int increaseMoveSpeed = GLFW_KEY_RIGHT;
+  int decreaseMoveSpeed = GLFW_KEY_LEFT;
 };
 
 class KeyboardMovementController {
@@ -20,7 +24,7 @@ public:
 
   KeyboardKeyMapping keys{};
   float moveSpeed{3.f};
-  float lookSpeed{10.f};
+  float lookSpeed{1.f};
 
   static void mouse_callback(GLFWwindow *window, double xpos, double ypos);
 
