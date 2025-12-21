@@ -7,6 +7,7 @@
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
+#include <vulkan/vulkan_core.h>
 
 Pipeline::Pipeline(Device &device, const std::string &vertFilepath,
                    const std::string &fragFilepath,

@@ -60,36 +60,43 @@ void KeyboardMovementController::moveInPlaneXZ(GLFWwindow *window, float dt,
   const glm::vec3 upDir{0.f, -1.f, 0.f};
 
   glm::vec3 moveDir{0.f};
+
   if (glfwGetKey(window, keys.moveForward) == GLFW_PRESS)
     moveDir += forwardDir;
   if (glfwGetKey(window, keys.moveBackward) == GLFW_PRESS)
     moveDir -= forwardDir;
+
   if (glfwGetKey(window, keys.moveLeft) == GLFW_PRESS)
     moveDir -= rightDir;
   if (glfwGetKey(window, keys.moveRight) == GLFW_PRESS)
     moveDir += rightDir;
+
   if (glfwGetKey(window, keys.moveUp) == GLFW_PRESS)
     moveDir += upDir;
   if (glfwGetKey(window, keys.moveDown) == GLFW_PRESS)
     moveDir -= upDir;
-  if (glfwGetKey(window, keys.increaseLookSpeed) == GLFW_PRESS) {
-    ++lookSpeed;
-  }
-  if (glfwGetKey(window, keys.decreaseLookSpeed) == GLFW_PRESS &&
-      lookSpeed > 1) {
-    --lookSpeed;
-  }
 
-  if (glfwGetKey(window, keys.increaseMoveSpeed) == GLFW_PRESS) {
-    ++moveSpeed;
-  }
-  if (glfwGetKey(window, keys.decreaseMoveSpeed) == GLFW_PRESS &&
-      moveSpeed > 1) {
-    --moveSpeed;
-  }
-
-  if (glm::dot(moveDir, moveDir) > std::numeric_limits<float>::epsilon()) {
+  if (glm::dot(moveDir, moveDir) > std::numeric_limits<float>::epsilon())
     gameObject.transform.translation +=
         moveSpeed * dt * glm::normalize(moveDir);
+
+  if (glfwGetKey(window, keys.increaseLookSpeed) == GLFW_PRESS)
+    lookSpeed += dt * 5;
+
+  if (glfwGetKey(window, keys.decreaseLookSpeed) == GLFW_PRESS &&
+      lookSpeed > 0) {
+    lookSpeed -= dt * 5;
+    if (lookSpeed < 0)
+      lookSpeed = 0;
+  }
+
+  if (glfwGetKey(window, keys.increaseMoveSpeed) == GLFW_PRESS)
+    moveSpeed += dt * 20;
+
+  if (glfwGetKey(window, keys.decreaseMoveSpeed) == GLFW_PRESS &&
+      moveSpeed > 0) {
+    moveSpeed -= dt * 20;
+    if (moveSpeed < 0)
+      moveSpeed = 0;
   }
 }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "device.hpp"
+#include <memory>
 #include <vulkan/vulkan_core.h>
 
 #define GLM_FORCE_RADIANS
@@ -14,8 +15,10 @@
 class Model {
 public:
   struct Vertex {
-    glm::vec3 position;
-    glm::vec3 color;
+    glm::vec3 position{};
+    glm::vec3 color{};
+    glm::vec3 normal{};
+    glm::vec2 uv{};
 
     static std::vector<VkVertexInputBindingDescription>
     getBindingDescriptions();
@@ -27,10 +30,14 @@ public:
   struct Builder {
     std::vector<Vertex> vertices{};
     std::vector<uint32_t> indices{};
+    void loadModel(const std::string &filePath);
   };
 
   Model(Device &device, const Model::Builder &builder);
   ~Model();
+
+  static std::unique_ptr<Model>
+  createModelFromFile(Device &device, const std::string &filePath);
 
   Model(const Model &) = delete;
   Model &operator=(const Model &) = delete;

@@ -11,7 +11,7 @@ TARGET := a.out
 CXXFLAGS := -std=c++17 -I. -I$(VULKAN_SDK_PATH)/include
 LDFLAGS  := -L$(VULKAN_SDK_PATH)/lib \
             $(shell pkg-config --static --libs glfw3) \
-            -lvulkan
+            -lvulkan -g
 
 # Source files
 CPP_SOURCES := $(wildcard *.cpp)
