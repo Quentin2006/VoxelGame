@@ -1,17 +1,27 @@
 #include "model.hpp"
 #include "external/tinyobjloader/tiny_obj_loader.h"
-#include <iostream>
-#include <ostream>
+#include "utils.hpp"
 #include <stdexcept>
+#include <unordered_map>
 
 #define TINYOBJLOADER_IMPLEMENTATION
 #include <tiny_obj_loader.h>
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/hash.hpp>
 
 #include <cassert>
 #include <cstddef>
 #include <cstring>
 #include <vector>
 #include <vulkan/vulkan_core.h>
+
+template <> struct std::hash<Model::Vertex> {
+  size_t operator()(Model::Vertex const &vertex) const {
+    size_t seed = 0;
+    hashCombine(seed, vertex.position, vertex.color, vertex.normal, vertex.uv);
+    return seed;
+  }
+};
 
 Model::Model(Device &device, const Model::Builder &builder) : device(device) {
   createVertexBuffers(builder.vertices);
@@ -31,7 +41,6 @@ std::unique_ptr<Model> Model::createModelFromFile(Device &device,
                                                   const std::string &filePath) {
   Builder builder{};
   builder.loadModel(filePath);
-  std::cout << "Vertex Count: " << builder.vertices.size() << std::endl;
 
   return std::make_unique<Model>(device, builder);
 }
@@ -156,6 +165,7 @@ void Model::Builder::loadModel(const std::string &filePath) {
   vertices.clear();
   indices.clear();
 
+  std::unordered_map<Vertex, uint32_t> uniqueVertices;
   for (const auto &shape : shapes) {
     for (const auto &index : shape.mesh.indices) {
       Vertex vertex{};
@@ -192,7 +202,11 @@ void Model::Builder::loadModel(const std::string &filePath) {
             attrib.texcoords[2 * index.texcoord_index + 1],
         };
       }
-      vertices.push_back(vertex);
+      if (uniqueVertices.count(vertex) == 0) {
+        uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
+        vertices.push_back(vertex);
+      }
+      indices.push_back(uniqueVertices[vertex]);
     }
   }
 }

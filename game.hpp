@@ -23,7 +23,7 @@ public:
 
 private:
   void loadObjects();
-  double getAvgFPS(float frameTime);
+  double getFPS(float frameTime);
 
   Window window{WIDTH, HEIGHT, "Hello Vulkan!"};
   Device device{window};

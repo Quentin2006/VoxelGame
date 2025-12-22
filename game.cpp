@@ -16,12 +16,19 @@
 Game::Game() { loadObjects(); }
 
 Game::~Game() {}
-double Game::getAvgFPS(float frameTime) {
+double Game::getFPS(float frameTime) {
   static double totalTime = 0.0;
   static uint64_t frameCount = 0;
+  static double fps = 0.0;
 
   totalTime += frameTime;
   ++frameCount;
+
+  if (totalTime > 1) {
+    fps = frameCount / totalTime;
+    totalTime = 0;
+    frameCount = 0;
+  }
 
   return frameCount / totalTime;
 }
@@ -49,8 +56,7 @@ void Game::run() {
 
     currentTime = newTime;
 
-    std::cout << "\rAVG FPS: " << std::fixed << getAvgFPS(frameTime)
-              << std::flush;
+    std::cout << "\rAVG FPS: " << std::fixed << getFPS(frameTime) << std::flush;
 
     cameraController.moveInPlaneXZ(window.getGLFWwindow(), frameTime,
                                    viewerObject);
@@ -75,7 +81,7 @@ void Game::run() {
 void Game::loadObjects() {
 
   std::shared_ptr<Model> model =
-      Model::createModelFromFile(device, "./models/colored_cube.obj");
+      Model::createModelFromFile(device, "./models/smooth_vase.obj");
 
   Object obj = Object::createGameObject();
 
