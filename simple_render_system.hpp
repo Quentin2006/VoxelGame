@@ -1,7 +1,7 @@
 #pragma once
 
-#include "camera.hpp"
 #include "device.hpp"
+#include "frame_info.hpp"
 #include "object.hpp"
 #include "pipeline.hpp"
 
@@ -17,9 +17,8 @@ public:
   SimpleRenderSystem(const SimpleRenderSystem &) = delete;
   SimpleRenderSystem &operator=(const SimpleRenderSystem &) = delete;
 
-  void renderGameObjects(VkCommandBuffer commandBuffer,
-                         std::vector<Object> &gameObjects,
-                         const Camera &camera);
+  void renderGameObjects(FrameInfo &frameInfo,
+                         std::vector<Object> &gameObjects);
 
 private:
   void createPipelineLayout();

@@ -24,6 +24,7 @@ public:
 private:
   void loadObjects();
   double getFPS(float frameTime);
+  void makeFlatWorld(int xSize, int zSize, int yHeight);
 
   Window window{WIDTH, HEIGHT, "Hello Vulkan!"};
   Device device{window};

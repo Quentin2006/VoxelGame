@@ -1,4 +1,5 @@
 #include "simple_render_system.hpp"
+#include <glm/common.hpp>
 
 // libs
 #define GLM_FORCE_RADIANS
@@ -12,7 +13,7 @@
 
 struct SimplePushConstantData {
   glm::mat4 transform{1.f};
-  alignas(16) glm::vec3 color;
+  glm::mat4 modelMatrix{1.f};
 };
 
 SimpleRenderSystem::SimpleRenderSystem(Device &device, VkRenderPass renderPass)
@@ -57,25 +58,26 @@ void SimpleRenderSystem::createPipeline(VkRenderPass renderPass) {
       "shaders/simple_shader.frag.spv", pipelineConfig);
 }
 
-void SimpleRenderSystem::renderGameObjects(VkCommandBuffer commandBuffer,
-                                           std::vector<Object> &gameObjects,
-                                           const Camera &camera) {
-  pipeline->bind(commandBuffer);
+void SimpleRenderSystem::renderGameObjects(FrameInfo &frameInfo,
+                                           std::vector<Object> &gameObjects) {
+  pipeline->bind(frameInfo.commandBuffer);
 
-  auto projectionView = camera.getProjection() * camera.getView();
+  auto projectionView =
+      frameInfo.camera.getProjection() * frameInfo.camera.getView();
 
   for (auto &obj : gameObjects) {
     SimplePushConstantData push{};
 
-    push.color = obj.color;
-    push.transform = projectionView * obj.transform.mat4();
+    auto modelMatrix = obj.transform.mat4();
+    push.transform = projectionView * modelMatrix;
+    push.modelMatrix = modelMatrix;
 
-    vkCmdPushConstants(commandBuffer, pipelineLayout,
+    vkCmdPushConstants(frameInfo.commandBuffer, pipelineLayout,
                        VK_SHADER_STAGE_VERTEX_BIT |
                            VK_SHADER_STAGE_FRAGMENT_BIT,
                        0, sizeof(SimplePushConstantData), &push);
 
-    obj.model->bind(commandBuffer);
-    obj.model->draw(commandBuffer);
+    obj.model->bind(frameInfo.commandBuffer);
+    obj.model->draw(frameInfo.commandBuffer);
   }
 }

@@ -24,7 +24,7 @@ public:
 
   KeyboardKeyMapping keys{};
   float moveSpeed{3.f};
-  float lookSpeed{1.f};
+  float lookSpeed{3.f};
 
   static void mouse_callback(GLFWwindow *window, double xpos, double ypos);
 
